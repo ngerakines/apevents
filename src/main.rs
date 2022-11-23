@@ -1,12 +1,15 @@
 use std::env;
 
-use actix_web::{http::header, web, web::Data, App, HttpResponse, HttpServer, Responder};
+use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
 
+mod error;
 mod state;
 mod webfinger;
 
-use crate::state::MyState;
-use crate::webfinger::*;
+use actix_webfinger::WebfingerGuard;
+
+use crate::state::state_factory;
+use crate::webfinger::handle_webfinger;
 
 async fn handle_index() -> impl Responder {
     HttpResponse::Ok()
@@ -17,16 +20,15 @@ async fn handle_index() -> impl Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
-    let domain: String =
-        env::var("APEVENTS_DOMAIN").unwrap_or_else(|_| format!("localhost:{port}"));
 
     HttpServer::new(move || {
         App::new()
-            .app_data(Data::new(MyState {
-                domain: domain.to_owned(),
-                https: false,
-            }))
-            .service(actix_webfinger::resource::<MyResolver>())
+            .data_factory(state_factory)
+            .service(
+                actix_web::web::resource("/.well-known/webfinger")
+                    .guard(WebfingerGuard)
+                    .route(web::get().to(handle_webfinger)),
+            )
             .route("/", web::get().to(handle_index))
     })
     .bind(format!("0.0.0.0:{port}"))?
