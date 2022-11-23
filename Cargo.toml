@@ -15,6 +15,9 @@ async-trait = {version = "0.1"}
 serde = "1.0"
 serde_derive = "1.0"
 thiserror = "1"
+tracing-actix-web = "0.6"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [profile.dev.package.sqlx-macros]
 opt-level = 3

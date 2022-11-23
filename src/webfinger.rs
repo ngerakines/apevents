@@ -70,33 +70,43 @@ pub async fn handle_webfinger(
     query: web::Query<WebfingerQuery>,
 ) -> impl Responder {
     let WebfingerResource {
-        scheme: _,
+        scheme,
         account,
         domain,
     } = query.into_inner().resource;
 
-    let user_count: (i64,) = sqlx::query_as("SELECT COUNT(*) as count FROM users WHERE name = $1")
-        .bind(&account)
-        .fetch_one(&app_state.pool)
-        .await
-        .unwrap_or((0,));
+    if Some("acct:".to_string()) != scheme {
+        return HttpResponse::NotFound().finish();
+    }
+
+    if domain != app_state.domain {
+        return HttpResponse::NotFound().finish();
+    }
+
+    let user_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) as count FROM users WHERE name = $1 AND domain = $2")
+            .bind(&account)
+            .bind(&app_state.domain)
+            .fetch_one(&app_state.pool)
+            .await
+            .unwrap_or((0,));
 
     if user_count == (0,) {
         return HttpResponse::NotFound().finish();
     }
 
-    let mut svc = Webfinger::new(&format!("acct:{}@{}", account, domain));
-    svc.add_alias(&format!("https://{}/@{}", domain, account));
+    let mut svc = Webfinger::new(&format!("acct:{}@{}", account, app_state.domain));
+    svc.add_alias(&format!("{}/@{}", app_state.external_base, account));
     svc.add_link(Link {
         rel: "http://webfinger.net/rel/profile-page".to_string(),
         kind: Some("text/html".to_string()),
-        href: Some(format!("http://{}/@{}", domain, account)),
+        href: Some(format!("{}/@{}", app_state.external_base, account)),
         template: None,
     });
     svc.add_link(Link {
         rel: "self".to_string(),
         kind: Some("application/activity+json".to_string()),
-        href: Some(format!("http://{}/users/{}", domain, account)),
+        href: Some(format!("{}/users/{}", app_state.external_base, account)),
         template: None,
     });
     svc.add_link(Link {
@@ -104,8 +114,8 @@ pub async fn handle_webfinger(
         kind: None,
         href: None,
         template: Some(format!(
-            "http://{}/authorize_interaction?uri={{uri}}",
-            domain
+            "{}/authorize_interaction?uri={{uri}}",
+            app_state.external_base
         )),
     });
     svc.respond()
