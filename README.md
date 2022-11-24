@@ -10,17 +10,17 @@ For updates and discussions, check out https://thegem.city/tags/apevents.
 
 # Roadmap
 
-* Event actors
-  * Descriptions
-  * Follow and unfollow actions
-  * @event + #discuss public posts to boost messages to event followers
-  * @event + #impersonate mention-only posts to have the event re-publish the message as the event without the #impersonate tag
-  * @event + #admin mention-only post to have the event reply with an admin link that is good for 24 hours
-* Public event page that includes event details
-* Event creation with @planner
-* Admin page for server configuration
-  * Domain deny and allow functionality
-* Media storage offloading to object storage
+* [ ] Event actors https://github.com/ngerakines/apevents/issues/1
+  * [ ] Descriptions https://github.com/ngerakines/apevents/issues/2
+  * [ ] Follow and unfollow actions https://github.com/ngerakines/apevents/issues/2
+  * [ ] @event + #discuss public posts to boost messages to event followers
+  * [ ] @event + #impersonate mention-only posts to have the event re-publish the message as the event without the #impersonate tag
+  * [ ] @event + #admin mention-only post to have the event reply with an admin link that is good for 24 hours
+* [ ] Public event page that includes event details https://github.com/ngerakines/apevents/issues/3
+* [ ] Event creation with @planner
+* [ ] Admin page for server configuration
+  * [ ] Domain deny and allow functionality
+* [ ] Media storage offloading to object storage
 
 ## Icebox / For Discussion
 
