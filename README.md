@@ -6,6 +6,8 @@
 
 Events are considered public and there is no current or planned implementation of "private" events. The server will support domain allow and deny lists, for both fediverse moderation as well as network controls, but if the site is public then events can be seen by practically anyone.
 
+For updates and discussions, check out https://thegem.city/tags/apevents.
+
 # Roadmap
 
 * Event actors
