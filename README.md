@@ -4,6 +4,8 @@
 
 (ActivityPub) Events is an event management system that allows event creation and coordination across the fediverse.
 
+Events are considered public and there is no current or planned implementation of "private" events. The server will support domain allow and deny lists, for both fediverse moderation as well as network controls, but if the site is public then events can be seen by practically anyone.
+
 # Roadmap
 
 * Event actors
@@ -14,6 +16,16 @@
   * @event + #admin mention-only post to have the event reply with an admin link that is good for 24 hours
 * Public event page that includes event details
 * Event creation with @planner
+* Admin page for server configuration
+  * Domain deny and allow functionality
+* Media storage offloading to object storage
+
+## Icebox / For Discussion
+
+* Limited NLP functionality with the @planner actor to provide helpful functionality
+* Fediverse identity verification
+* Home page event and place lists
+* Event actor and object expiration and cleanup
 
 # Usage (abridged)
 
@@ -47,12 +59,10 @@ Constraints:
 
 ## Following an event
 
-1. From your fediverse instance, search for the actor reference (i.e. `@nick@thegem.city`, `https://thegem.city/@nick` or `https://thegem.city/users/nick`)
+1. From your fediverse instance, search for the actor reference (i.e. `@readily-splendid-mule@events.thegem.city`, `https://events.thegem.city/@readily-splendid-mule` or `https://events.thegem.city/users/readily-splendid-mule`)
 2. Follow the event actor
-3. Wait for a direct message from the actor that contains the poll "What is your RSVP?" with options "Going" and "Not going".
-4. Receive a confirmation direct message from the event actor.
 
-Alternatively
+## RSVP
 
 1. Send a direct message to the event actor with the message "#rsvp going" or "#rsvp not going"
 2. Receive a confirmation direct message from the event actor.
