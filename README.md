@@ -10,6 +10,8 @@ For updates and discussions, check out https://thegem.city/tags/apevents.
 
 # Roadmap
 
+The next milestone is [0.1.0](https://github.com/ngerakines/apevents/milestone/1).
+
 * [ ] Event actors https://github.com/ngerakines/apevents/issues/1
   * [ ] Descriptions https://github.com/ngerakines/apevents/issues/2
   * [ ] Follow and unfollow actions https://github.com/ngerakines/apevents/issues/2
@@ -24,6 +26,9 @@ For updates and discussions, check out https://thegem.city/tags/apevents.
 
 ## Icebox / For Discussion
 
+* Project documentation
+* Unit and integration testing
+* Interop testing
 * Limited NLP functionality with the @planner actor to provide helpful functionality
 * Fediverse identity verification
 * Home page event and place lists
