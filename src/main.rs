@@ -4,12 +4,20 @@ use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod activities;
+mod api_internal;
+mod apub_api;
 mod error;
+mod instance;
+mod objects;
 mod state;
+mod util;
 mod webfinger;
 
 use actix_webfinger::WebfingerGuard;
 
+use crate::api_internal::handle_internal_create_user;
+use crate::apub_api::handle_instance_get_user;
 use crate::state::state_factory;
 use crate::webfinger::handle_webfinger;
 
@@ -45,6 +53,11 @@ async fn main() -> std::io::Result<()> {
                     .route(web::get().to(handle_webfinger)),
             )
             .route("/", web::get().to(handle_index))
+            .route("/users/{name}", web::get().to(handle_instance_get_user))
+            .route(
+                "/internal/api/user",
+                web::post().to(handle_internal_create_user),
+            )
     })
     .bind(addrs)?
     .run()
