@@ -1,6 +1,13 @@
-on: [push, pull_request]
+name: "PR"
 
-name: Push
+on:
+  push:
+    branches-ignore: ["main"]
+    tags-ignore: ["*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
