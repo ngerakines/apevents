@@ -1,7 +1,4 @@
-use actix_web::{
-    http::header,
-    HttpResponse, ResponseError,
-};
+use actix_web::{http::header, HttpResponse, ResponseError};
 use std::fmt::{Display, Formatter};
 
 /// Necessary because of this issue: https://github.com/actix/actix-web/issues/1711

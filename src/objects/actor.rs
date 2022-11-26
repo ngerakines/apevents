@@ -4,30 +4,37 @@ use crate::{
     state::MyStateHandle,
 };
 use activitypub_federation::{
-    core::{
-        object_id::ObjectId,
-        signatures::{Keypair, PublicKey},
-    },
+    core::{activity_queue::send_activity, object_id::ObjectId, signatures::PublicKey},
     data::Data,
+    deser::context::WithContext,
     traits::{ActivityHandler, Actor, ApubObject},
+    LocalInstance,
 };
 use activitystreams_kinds::actor::PersonType;
 use serde::{Deserialize, Serialize};
+use sqlx::{postgres::PgRow, FromRow, Row};
 use url::Url;
 
 #[derive(Debug, Clone)]
-pub struct MyUser {
-    pub ap_id: ObjectId<MyUser>,
+pub struct EventActor {
+    pub ap_id: ObjectId<EventActor>,
     pub inbox: Url,
-    // exists for all users (necessary to verify http signatures)
     public_key: String,
-    // exists only for local users
-    // private_key: Option<String>,
+    private_key: Option<String>,
     pub followers: Vec<Url>,
     pub local: bool,
 }
 
-/// List of all activities which this actor can receive.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventActorView {
+    #[serde(rename = "type")]
+    kind: PersonType,
+    id: ObjectId<EventActor>,
+    inbox: Url,
+    public_key: PublicKey,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
 #[enum_delegate::implement(ActivityHandler)]
@@ -36,33 +43,7 @@ pub enum PersonAcceptedActivities {
     Accept(Accept),
 }
 
-impl MyUser {
-    pub fn new(ap_id: Url, keypair: Keypair) -> MyUser {
-        let mut inbox = ap_id.clone();
-        inbox.set_path("/inbox");
-        let ap_id = ObjectId::new(ap_id);
-        MyUser {
-            ap_id,
-            inbox,
-            public_key: keypair.public_key,
-            // private_key: Some(keypair.private_key),
-            followers: vec![],
-            local: true,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Person {
-    #[serde(rename = "type")]
-    kind: PersonType,
-    id: ObjectId<MyUser>,
-    inbox: Url,
-    public_key: PublicKey,
-}
-
-impl MyUser {
+impl EventActor {
     pub fn followers(&self) -> &Vec<Url> {
         &self.followers
     }
@@ -74,32 +55,65 @@ impl MyUser {
     fn public_key(&self) -> PublicKey {
         PublicKey::new_main_key(self.ap_id.clone().into_inner(), self.public_key.clone())
     }
+
+    pub(crate) async fn send<Activity>(
+        &self,
+        activity: Activity,
+        recipients: Vec<Url>,
+        local_instance: &LocalInstance,
+    ) -> Result<(), <Activity as ActivityHandler>::Error>
+    where
+        Activity: ActivityHandler + Serialize,
+        <Activity as ActivityHandler>::Error: From<anyhow::Error> + From<serde_json::Error>,
+    {
+        let activity = WithContext::new_default(activity);
+        send_activity(
+            activity,
+            self.public_key(),
+            self.private_key.clone().expect("has private key"),
+            recipients,
+            local_instance,
+        )
+        .await?;
+        Ok(())
+    }
+}
+
+impl FromRow<'_, PgRow> for EventActor {
+    fn from_row(row: &PgRow) -> sqlx::Result<Self> {
+        let ap_id = Url::parse(row.try_get("ap_id")?).expect("msg");
+
+        Ok(Self {
+            ap_id: ObjectId::new(ap_id),
+            public_key: row.try_get("public_key")?,
+            private_key: row.try_get("private_key")?,
+            inbox: Url::parse(row.try_get("inbox_id")?).expect("msg"),
+            followers: vec![],
+            local: row.try_get("is_local")?,
+        })
+    }
 }
 
 #[async_trait::async_trait(?Send)]
-impl ApubObject for MyUser {
+impl ApubObject for EventActor {
     type DataType = MyStateHandle;
-    type ApubType = Person;
-    type DbType = MyUser;
+    type ApubType = EventActorView;
+    type DbType = EventActor;
     type Error = crate::error::ApEventsError;
 
     async fn read_from_apub_id(
         object_id: Url,
         data: &Self::DataType,
     ) -> Result<Option<Self>, Self::Error> {
-        let found_user: (String, String, String) =
-            data.find_user_by_id(&object_id.path().to_string()).await?;
-        Ok(Some(MyUser::new(
-            object_id,
-            Keypair {
-                private_key: found_user.2,
-                public_key: found_user.1,
-            },
-        )))
+        let found_actor: EventActor = sqlx::query_as("SELECT * FROM actors WHERE ap_id = $1")
+            .bind(&object_id.to_string())
+            .fetch_one(&data.pool)
+            .await?;
+        Ok(Some(found_actor))
     }
 
     async fn into_apub(self, _data: &Self::DataType) -> Result<Self::ApubType, Self::Error> {
-        Ok(Person {
+        Ok(EventActorView {
             kind: Default::default(),
             id: self.ap_id.clone(),
             inbox: self.inbox.clone(),
@@ -121,18 +135,18 @@ impl ApubObject for MyUser {
         _data: &Self::DataType,
         _request_counter: &mut i32,
     ) -> Result<Self, Self::Error> {
-        Ok(MyUser {
+        Ok(EventActor {
             ap_id: apub.id,
             inbox: apub.inbox,
             public_key: apub.public_key.public_key_pem,
-            // private_key: None,
+            private_key: None,
             followers: vec![],
             local: false,
         })
     }
 }
 
-impl Actor for MyUser {
+impl Actor for EventActor {
     fn public_key(&self) -> &str {
         &self.public_key
     }
