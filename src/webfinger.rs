@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use actix_webfinger::{Link, Webfinger};
 
-use crate::state::MyState;
+use crate::state::MyStateHandle;
 
 #[derive(Clone, Debug, Error)]
 #[error("Resource {0} is invalid")]
@@ -65,7 +65,7 @@ pub struct WebfingerQuery {
 }
 
 pub async fn handle_webfinger(
-    app_state: web::Data<MyState>,
+    app_state: web::Data<MyStateHandle>,
     _req: HttpRequest,
     query: web::Query<WebfingerQuery>,
 ) -> impl Responder {
@@ -83,10 +83,11 @@ pub async fn handle_webfinger(
         return HttpResponse::NotFound().finish();
     }
 
+    let ap_id = format!("{}/actor/{}",app_state.external_base, account);
+
     let user_count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) as count FROM users WHERE name = $1 AND domain = $2")
-            .bind(&account)
-            .bind(&app_state.domain)
+        sqlx::query_as("SELECT COUNT(*) as count FROM actors WHERE ap_id = $1")
+            .bind(&ap_id)
             .fetch_one(&app_state.pool)
             .await
             .unwrap_or((0,));
@@ -106,7 +107,7 @@ pub async fn handle_webfinger(
     svc.add_link(Link {
         rel: "self".to_string(),
         kind: Some("application/activity+json".to_string()),
-        href: Some(format!("{}/users/{}", app_state.external_base, account)),
+        href: Some(format!("{}/actor/{}", app_state.external_base, account)),
         template: None,
     });
     svc.add_link(Link {
