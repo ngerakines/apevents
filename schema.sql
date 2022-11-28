@@ -1,5 +1,6 @@
 CREATE TABLE actors (
     ap_id varchar not null,
+    actor_ref varchar not null,
     is_local bool not null default false,
     public_key varchar not null,
     private_key varchar,

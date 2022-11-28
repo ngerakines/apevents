@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elements</title>
+    <link rel="stylesheet" href="/static/css/site.css" type="text/css">
+    <title>APEvents</title>
+</head>
+
+<body>
+    <header>
+        <h1>APEvents</h1>
+        <p><abbr title="ActivityPub">AP</abbr> events made easy.</p>
+        <nav>
+            <ul>
+                <li>Home</li>
+                <li><a href="#">Events</a></li>
+                <li><a href="#">About</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article>
+            <h1>{{ display_name }}</h1>
+            <ul>
+                {% for event in events %}
+                <li><a href="{{ event.0 }}">{{ event.1 }}</a></li>
+                {% endfor  %}
+            </ul>
+        </article>
+    </main>
+    <footer>
+        <p><a href="https://github.com/ngerakines/apevents">ngerakines/apevents</a> v0.1.0</p>
+    </footer>
+</body>
+
+</html>

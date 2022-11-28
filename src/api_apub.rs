@@ -10,8 +10,8 @@ use activitypub_federation::{
     traits::ApubObject,
     APUB_JSON_CONTENT_TYPE,
 };
-use std::ops::Deref;
 use actix_web::{web, HttpRequest, HttpResponse};
+use std::ops::Deref;
 use url::Url;
 
 pub async fn handle_instance_get_event_actor(

@@ -18,6 +18,7 @@ use url::Url;
 #[derive(Debug, Clone)]
 pub struct EventActor {
     pub ap_id: ObjectId<EventActor>,
+    pub actor_ref: String,
     pub inbox: Url,
     public_key: String,
     private_key: Option<String>,
@@ -85,6 +86,7 @@ impl FromRow<'_, PgRow> for EventActor {
 
         Ok(Self {
             ap_id: ObjectId::new(ap_id),
+            actor_ref: row.try_get("actor_ref")?,
             public_key: row.try_get("public_key")?,
             private_key: row.try_get("private_key")?,
             inbox: Url::parse(row.try_get("inbox_id")?).expect("msg"),
@@ -132,17 +134,13 @@ impl ApubObject for EventActor {
 
     async fn from_apub(
         apub: Self::ApubType,
-        _data: &Self::DataType,
+        data: &Self::DataType,
         _request_counter: &mut i32,
     ) -> Result<Self, Self::Error> {
-        Ok(EventActor {
-            ap_id: apub.id,
-            inbox: apub.inbox,
-            public_key: apub.public_key.public_key_pem,
-            private_key: None,
-            followers: vec![],
-            local: false,
-        })
+        Ok(sqlx::query_as("SELECT * FROM actors WHERE ap_id = $1")
+            .bind(apub.id.to_string())
+            .fetch_one(&data.pool)
+            .await?)
     }
 }
 

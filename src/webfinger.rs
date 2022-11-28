@@ -83,7 +83,7 @@ pub async fn handle_webfinger(
         return HttpResponse::NotFound().finish();
     }
 
-    let ap_id = format!("{}/actor/{}",app_state.external_base, account);
+    let ap_id = format!("{}/actor/{}", app_state.external_base, account);
 
     let user_count: (i64,) =
         sqlx::query_as("SELECT COUNT(*) as count FROM actors WHERE ap_id = $1")
