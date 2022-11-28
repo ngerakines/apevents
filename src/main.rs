@@ -16,13 +16,17 @@ mod objects;
 mod state;
 mod util;
 mod webfinger;
+mod handler_events;
 
 use actix_webfinger::WebfingerGuard;
+use actix_files as fs;
+use util::HeaderStart;
 
 use crate::api_apub::handle_instance_get_event_actor;
 use crate::api_internal::handle_internal_create_user;
 use crate::state::state_factory;
 use crate::webfinger::handle_webfinger;
+use crate::handler_events::handle_event;
 
 async fn handle_index() -> impl Responder {
     HttpResponse::Ok()
@@ -49,7 +53,17 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
+            .service(fs::Files::new("/static", "./static/"))
             .data_factory(state_factory)
+            // .service(web::resource("/event/{name}").route(web::get().to(handle_event)).guard(HeaderStart("accept", "text/html")))
+            .service(
+                web::scope("")
+                .guard(HeaderStart("accept", "text/html"))
+                .route(
+                    "/event/{name}",
+                    web::get().to(handle_event),
+                )
+            )
             .service(
                 actix_web::web::resource("/.well-known/webfinger")
                     .guard(WebfingerGuard)

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elements</title>
+    <link rel="stylesheet" href="/static/css/site.css" type="text/css">
+  <title>Event title - APEvents</title>
+</head>
+<body>
+  <header>
+    <h1>APEvents</h1>
+    <p><abbr title="ActivityPub">AP</abbr> events made easy.</p>
+    <nav>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">Events</a></li>
+        <li><a href="#">About</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    <article>
+      <h1>{{ display_name }}</h1>
+      <p>{{ summary }}</p>
+      <section>
+        <p>
+          <strong>When:</strong> {{ when }}<br />
+          <strong>Where:</strong> {{ location }}<br />
+          <strong>Follow:</strong> <a href="{{ ap_id }}">{{ actor_ref }}</a>
+        </p>
+      </section>
+      <section>
+        <h2>Engagement</h2>
+        <p>Followers: {{ follower_count }}</p>
+        <h3>Attendees</h3>
+        <p>Attendees: {{ attendee_count }}</p>
+        <ul>
+          <li><a href="#">@foo@some.social</a></li>
+          <li><a href="#">@bar@thecool.exchange</a></li>
+          <li><a href="#">@baz@wilderness.camp</a></li>
+          <!-- <li><small>{{ hidden_attendee_count }} hidden attendees</small></li> -->
+        </ul>
+      </section>
+    </article>
+</main>
+<footer>
+  <p><a href="https://github.com/ngerakines/apevents">ngerakines/apevents</a> v0.1.0</p>
+</footer>
+</body>
+</html>

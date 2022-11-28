@@ -30,6 +30,12 @@ rand = "0.8"
 enum_delegate = "0.2"
 serde_json = { version = "1.0.87", features = ["preserve_order"] }
 petname = "1"
+askama = { version = "0.11.1", default-features = false, features = ["with-actix-web"] }
+askama_actix = "0.13"
+actix-files = "0.6.2"
 
 [profile.dev.package.sqlx-macros]
 opt-level = 3
+
+[build-dependencies]
+askama_actix = "0.13"
