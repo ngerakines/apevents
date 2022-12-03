@@ -2,8 +2,9 @@ use log::info;
 use reqwest::Url;
 use serde_json::Value;
 
+use crate::ap;
 use crate::error::ApEventsError;
-use crate::objects::actor::EventActor;
+use crate::objects::actor::{EventActor, EventActorView};
 use crate::state::MyStateHandle;
 use crate::util::fetch_object_http;
 
@@ -51,7 +52,7 @@ pub async fn actor_maybe(
     let remote_ap_id_url = Url::parse(&remote_ap_id)?;
     info!("remote_ap_id_url {}", &remote_ap_id_url);
     let public_key_id = format!("{}#main-key", local_ap_id);
-    let it: Value = fetch_object_http(
+    let it: ap::actor::Actor = fetch_object_http(
         &remote_ap_id_url,
         public_key_id,
         found_follower.private_key.unwrap(),
@@ -59,5 +60,5 @@ pub async fn actor_maybe(
     .await?;
     info!("it {:?}", &it);
 
-    Err(ApEventsError::new("unhandled error".to_string()))
+    Ok(it.try_into()?)
 }

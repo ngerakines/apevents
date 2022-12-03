@@ -16,7 +16,7 @@ pub async fn handle_internal_create_user(
     let name = petname::Petnames::default().generate_one(3, "-");
     let object_id = format!("{}/actor/{}", app_state.external_base, name);
     let inbox_id = format!("{}/actor/{}/inbox", app_state.external_base, name);
-    let actor_ref = format!("@{}@{}", name, app_state.domain);
+    let actor_ref = format!("{}@{}", name, app_state.domain);
 
     let keypair = generate_actor_keypair()?;
 

@@ -3,7 +3,7 @@ use crate::{
     error::ApEventsError,
     fed::actor_maybe,
     state::MyStateHandle,
-    util::generate_object_id,
+    util::generate_object_id, ap,
 };
 use activitypub_federation::{
     core::{activity_queue::send_activity, object_id::ObjectId, signatures::PublicKey},
@@ -24,7 +24,11 @@ pub struct EventActor {
     pub inbox: Url,
     pub public_key: String,
     pub private_key: Option<String>,
+
+    #[serde(skip_deserializing)]
     pub followers: Vec<Url>,
+
+    #[serde(skip_deserializing)]
     pub local: bool,
 }
 
@@ -101,6 +105,22 @@ impl EventActor {
     }
 }
 
+impl TryFrom<ap::actor::Actor> for EventActor {
+    type Error = ApEventsError;
+
+    fn try_from(actor: ap::actor::Actor) -> Result<Self, Self::Error> {
+        Ok(EventActor {
+            ap_id: ObjectId::new(Url::parse(&actor.ap_id)?),
+            actor_ref: "".to_string(),
+            public_key: actor.public_key.unwrap().public_key_pem,
+            private_key: None,
+            inbox: Url::parse(&actor.inbox.unwrap())?,
+            followers: vec![],
+            local: true,
+        })
+    }
+}
+
 impl FromRow<'_, PgRow> for EventActor {
     fn from_row(row: &PgRow) -> sqlx::Result<Self> {
         let ap_id = Url::parse(row.try_get("ap_id")?).expect("msg");
@@ -136,13 +156,15 @@ impl ApubObject for EventActor {
     }
 
     async fn into_apub(self, _data: &Self::DataType) -> Result<Self::ApubType, Self::Error> {
+        let actor_ref_parts: Vec<&str> = self.actor_ref.split('@').collect();
+
         Ok(EventActorView {
             kind: Default::default(),
             id: self.ap_id.clone(),
             inbox: self.inbox.clone(),
             public_key: self.public_key(),
-            name: "an_actor".to_string(),
-            preferred_username: "an_actor".to_string(),
+            name: actor_ref_parts[0].to_string(),
+            preferred_username: actor_ref_parts[0].to_string(),
             sensitive: false,
             summary: Some("a description".to_string()),
         })

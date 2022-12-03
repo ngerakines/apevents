@@ -15,10 +15,20 @@ use serde_json::Value;
 use std::{ops::Deref, str::FromStr, vec};
 use url::Url;
 
+pub async fn handle_wellknown_host_meta(
+    app_state: web::Data<MyStateHandle>,
+) -> Result<HttpResponse, ApEventsError> {
+    Ok(HttpResponse::Ok()
+    .content_type("application/xrd+xml")
+    .body(format!(r#"<?xml version="1.0" encoding="UTF-8"?><XRD xmlns="http://docs.oasis-open.org/ns/xri/xrd-1.0"><Link rel="lrdd" template="{}/.well-known/webfinger?resource={{uri}}"/></XRD>"#, app_state.external_base)))
+}
+
 pub async fn handle_instance_get_event_actor(
     request: HttpRequest,
     app_state: web::Data<MyStateHandle>,
 ) -> Result<HttpResponse, ApEventsError> {
+    // TODO: Validate signatures
+
     let request_url = format!("{}{}", app_state.external_base, &request.uri().to_string());
     let url = Url::parse(&request_url)?;
     let user = ObjectId::<EventActor>::new(url)
@@ -35,7 +45,7 @@ pub async fn handle_instance_get_event_actor(
             user.unwrap().into_apub(&app_state).await?,
             vec![
                 Value::from_str("\"https://www.w3.org/ns/activitystreams\"")?,
-                Value::from_str("\"https://w3id.org/security/v1\"")?
+                Value::from_str("\"https://w3id.org/security/v1\"")?,
             ],
         )))
 }

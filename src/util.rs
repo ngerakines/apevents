@@ -11,7 +11,6 @@ pub fn HeaderStart(name: &'static str, value: &'static str) -> impl Guard {
     HeaderStartGuard(
         header::HeaderName::try_from(name).unwrap(),
         value.to_string(),
-        // header::HeaderValue::from_static(value),
     )
 }
 
@@ -77,7 +76,7 @@ pub async fn fetch_object_http<Kind: DeserializeOwned>(
     let res = client.execute(request).await.map_err(Error::conv)?;
 
     info!("response {:?}", &res);
-    info!("response body {:?}", &res.text().await.unwrap());
+    // info!("response body {:?}", &res.text().await.unwrap());
     // let res = client
     //     .get(url.as_str())
     //     .header("Accept", APUB_JSON_CONTENT_TYPE)
@@ -90,8 +89,7 @@ pub async fn fetch_object_http<Kind: DeserializeOwned>(
     //     return Err(Error::ObjectDeleted);
     // }
 
-    // res.json().await.map_err(Error::conv)
-    Err(Error::ObjectDeleted)
+    res.json().await.map_err(Error::conv)
 }
 
 fn generate_request_headers(inbox_url: &Url) -> HeaderMap {
