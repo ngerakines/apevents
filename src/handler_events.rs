@@ -45,12 +45,7 @@ pub async fn handle_home(app_state: Data<MyStateHandle>) -> Result<HttpResponse,
         events: found_actors
             .unwrap()
             .iter()
-            .map(|x| {
-                EventElementTemplate(
-                    x.ap_id.to_string(),
-                    x.actor_ref.clone(),
-                )
-            })
+            .map(|x| EventElementTemplate(x.ap_id.to_string(), x.actor_ref.clone()))
             .collect(),
     }
     .to_response())

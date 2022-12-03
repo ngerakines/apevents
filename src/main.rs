@@ -1,11 +1,11 @@
+extern crate env_logger;
+
 use std::env;
 
-use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{http::header, middleware::Logger, web, App, HttpResponse, HttpServer, Responder};
 use api_apub::handle_instance_post_event_actor_inbox;
 use http_signature_normalization_actix::prelude::VerifyDigest;
 use sha2::{Digest, Sha256};
-use tracing_actix_web::TracingLogger;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod activities;
 mod api_apub;
@@ -36,12 +36,7 @@ async fn handle_index() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "debug".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let listen_address: String =
         env::var("LISTEN_ADDRESS").unwrap_or_else(|_| "0.0.0.0".to_string());
@@ -52,7 +47,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .wrap(TracingLogger::default())
+            .wrap(Logger::new("%a %r %s %T '%{User-Agent}i'").log_target("apevents::web"))
             .service(fs::Files::new("/static", "./static/"))
             .data_factory(state_factory)
             .service(
