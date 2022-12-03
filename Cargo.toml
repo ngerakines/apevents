@@ -15,9 +15,6 @@ async-trait = {version = "0.1"}
 serde = "1.0"
 serde_derive = "1.0"
 thiserror = "1"
-tracing-actix-web = "0.6"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 activitypub_federation = "0.3"
 reqwest = { version = "0.11", features = ["json"] }
 sha2 = "0.10"
@@ -30,6 +27,13 @@ rand = "0.8"
 enum_delegate = "0.2"
 serde_json = { version = "1.0.87", features = ["preserve_order"] }
 petname = "1"
+askama = { version = "0.11.1", default-features = false, features = ["with-actix-web"] }
+askama_actix = "0.13"
+actix-files = "0.6.2"
+env_logger = "0.10.0"
 
 [profile.dev.package.sqlx-macros]
 opt-level = 3
+
+[build-dependencies]
+askama_actix = "0.13"

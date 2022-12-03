@@ -1,26 +1,30 @@
+extern crate env_logger;
+
 use std::env;
 
-use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{http::header, middleware::Logger, web, App, HttpResponse, HttpServer, Responder};
 use api_apub::handle_instance_post_event_actor_inbox;
 use http_signature_normalization_actix::prelude::VerifyDigest;
 use sha2::{Digest, Sha256};
-use tracing_actix_web::TracingLogger;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod activities;
 mod api_apub;
 mod api_internal;
 mod error;
+mod handler_events;
 mod instance;
 mod objects;
 mod state;
 mod util;
 mod webfinger;
 
+use actix_files as fs;
 use actix_webfinger::WebfingerGuard;
+use util::HeaderStart;
 
 use crate::api_apub::handle_instance_get_event_actor;
 use crate::api_internal::handle_internal_create_user;
+use crate::handler_events::{handle_event, handle_home};
 use crate::state::state_factory;
 use crate::webfinger::handle_webfinger;
 
@@ -32,12 +36,7 @@ async fn handle_index() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "debug".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let listen_address: String =
         env::var("LISTEN_ADDRESS").unwrap_or_else(|_| "0.0.0.0".to_string());
@@ -48,15 +47,26 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .wrap(TracingLogger::default())
+            .wrap(Logger::new("%a %r %s %T '%{User-Agent}i'").log_target("apevents::web"))
+            .service(fs::Files::new("/static", "./static/"))
             .data_factory(state_factory)
+            .service(
+                web::scope("")
+                    .guard(HeaderStart("accept", "text/html"))
+                    .route("/", web::get().to(handle_home))
+                    .route("/actor/{name}", web::get().to(handle_event))
+                    .route("/@{name}", web::get().to(handle_event)),
+            )
             .service(
                 actix_web::web::resource("/.well-known/webfinger")
                     .guard(WebfingerGuard)
                     .route(web::get().to(handle_webfinger)),
             )
             .route("/", web::get().to(handle_index))
-            .route("/actor/{name}", web::get().to(handle_instance_get_event_actor))
+            .route(
+                "/actor/{name}",
+                web::get().to(handle_instance_get_event_actor),
+            )
             .route(
                 "/internal/api/user",
                 web::post().to(handle_internal_create_user),
