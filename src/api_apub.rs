@@ -11,7 +11,8 @@ use activitypub_federation::{
     APUB_JSON_CONTENT_TYPE,
 };
 use actix_web::{web, HttpRequest, HttpResponse};
-use std::ops::Deref;
+use serde_json::Value;
+use std::{ops::Deref, str::FromStr, vec};
 use url::Url;
 
 pub async fn handle_instance_get_event_actor(
@@ -30,8 +31,12 @@ pub async fn handle_instance_get_event_actor(
     }
     Ok(HttpResponse::Ok()
         .content_type(APUB_JSON_CONTENT_TYPE)
-        .json(WithContext::new_default(
+        .json(WithContext::new(
             user.unwrap().into_apub(&app_state).await?,
+            vec![
+                Value::from_str("\"https://www.w3.org/ns/activitystreams\"")?,
+                Value::from_str("\"https://w3id.org/security/v1\"")?
+            ],
         )))
 }
 

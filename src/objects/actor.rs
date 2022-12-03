@@ -1,7 +1,9 @@
 use crate::{
     activities::{accept::Accept, follow::Follow},
     error::ApEventsError,
+    fed::actor_maybe,
     state::MyStateHandle,
+    util::generate_object_id,
 };
 use activitypub_federation::{
     core::{activity_queue::send_activity, object_id::ObjectId, signatures::PublicKey},
@@ -15,13 +17,13 @@ use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgRow, FromRow, Row};
 use url::Url;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct EventActor {
     pub ap_id: ObjectId<EventActor>,
     pub actor_ref: String,
     pub inbox: Url,
-    public_key: String,
-    private_key: Option<String>,
+    pub public_key: String,
+    pub private_key: Option<String>,
     pub followers: Vec<Url>,
     pub local: bool,
 }
@@ -34,6 +36,11 @@ pub struct EventActorView {
     id: ObjectId<EventActor>,
     inbox: Url,
     public_key: PublicKey,
+
+    name: String,
+    preferred_username: String,
+    sensitive: bool,
+    summary: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -56,6 +63,20 @@ impl EventActor {
     fn public_key(&self) -> PublicKey {
         PublicKey::new_main_key(self.ap_id.clone().into_inner(), self.public_key.clone())
     }
+
+    // pub async fn follow(&self, other: String, app_state: &MyStateHandle) -> Result<(), ApEventsError> {
+    //     let found_remote_actor = actor_maybe(app_state, other).await?;
+
+    //     let id = generate_object_id(&app_state.domain)?;
+    //     let follow = Follow::new(self.ap_id.clone(), found_remote_actor.ap_id.clone(), id.clone());
+    //     self.send(
+    //         follow,
+    //         vec![found_remote_actor.shared_inbox_or_inbox()],
+    //         &app_state.local_instance,
+    //     )
+    //     .await?;
+    //     Ok(())
+    // }
 
     pub(crate) async fn send<Activity>(
         &self,
@@ -120,6 +141,10 @@ impl ApubObject for EventActor {
             id: self.ap_id.clone(),
             inbox: self.inbox.clone(),
             public_key: self.public_key(),
+            name: "an_actor".to_string(),
+            preferred_username: "an_actor".to_string(),
+            sensitive: false,
+            summary: Some("a description".to_string()),
         })
     }
 
