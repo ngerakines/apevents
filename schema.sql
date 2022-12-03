@@ -7,7 +7,7 @@ CREATE TABLE actors (
     inbox_id varchar,
     created_at timestamp not null default now(),
     updated_at timestamp not null default now(),
-    PRIMARY KEY (ap_id) 
+    PRIMARY KEY (ap_id)
 );
 
 CREATE TABLE actor_followers (
