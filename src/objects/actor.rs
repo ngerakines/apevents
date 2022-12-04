@@ -69,19 +69,27 @@ impl EventActor {
         PublicKey::new_main_key(self.ap_id.clone().into_inner(), self.public_key.clone())
     }
 
-    // pub async fn follow(&self, other: String, app_state: &MyStateHandle) -> Result<(), ApEventsError> {
-    //     let found_remote_actor = actor_maybe(app_state, other).await?;
+    pub async fn follow(
+        &self,
+        other: String,
+        app_state: &MyStateHandle,
+    ) -> Result<(), ApEventsError> {
+        let found_remote_actor = actor_maybe(app_state, self.ap_id.to_string(), other).await?;
 
-    //     let id = generate_object_id(&app_state.domain)?;
-    //     let follow = Follow::new(self.ap_id.clone(), found_remote_actor.ap_id.clone(), id.clone());
-    //     self.send(
-    //         follow,
-    //         vec![found_remote_actor.shared_inbox_or_inbox()],
-    //         &app_state.local_instance,
-    //     )
-    //     .await?;
-    //     Ok(())
-    // }
+        let id = generate_object_id(&app_state.domain)?;
+        let follow = Follow::new(
+            self.ap_id.clone(),
+            found_remote_actor.ap_id.clone(),
+            id.clone(),
+        );
+        self.send(
+            follow,
+            vec![found_remote_actor.shared_inbox_or_inbox()],
+            &app_state.local_instance,
+        )
+        .await?;
+        Ok(())
+    }
 
     pub(crate) async fn send<Activity>(
         &self,
