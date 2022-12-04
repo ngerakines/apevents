@@ -1,4 +1,3 @@
-reorder_imports = true
 edition = "2021"
 # force_multiline_blocks = true # nightly
 # format_code_in_doc_comments = true # nightly
