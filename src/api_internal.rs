@@ -1,14 +1,10 @@
+use activitypub_federation::{core::signatures::generate_actor_keypair, deser::context::WithContext, traits::ApubObject, APUB_JSON_CONTENT_TYPE};
+use actix_web::{http::header, web, HttpResponse};
+use serde::Deserialize;
+
 use crate::error::ApEventsError;
 use crate::fed::actor_maybe;
-use crate::objects::actor::EventActor;
 use crate::state::MyStateHandle;
-use activitypub_federation::core::signatures::generate_actor_keypair;
-use activitypub_federation::deser::context::WithContext;
-use activitypub_federation::traits::ApubObject;
-use activitypub_federation::APUB_JSON_CONTENT_TYPE;
-use actix_web::http::header;
-use actix_web::{web, HttpResponse};
-use serde::Deserialize;
 
 pub async fn handle_internal_create_user(
     app_state: web::Data<MyStateHandle>,
@@ -17,15 +13,17 @@ pub async fn handle_internal_create_user(
     let object_id = format!("{}/actor/{}", app_state.external_base, name);
     let inbox_id = format!("{}/actor/{}/inbox", app_state.external_base, name);
     let actor_ref = format!("{}@{}", name, app_state.domain);
+    let profile_page = format!("{}/@{}", app_state.external_base, name);
 
     let keypair = generate_actor_keypair()?;
 
-    let insert_result = sqlx::query("insert into actors (ap_id, actor_ref, is_local, inbox_id, public_key, private_key) values ($1, $2, true, $3, $4, $5)")
+    let insert_result = sqlx::query("insert into actors (ap_id, actor_ref, is_local, inbox_id, public_key, private_key, resources) values ($1, $2, true, $3, $4, $5, ARRAY[$1, $2, $6])")
         .bind(object_id)
         .bind(actor_ref)
         .bind(inbox_id)
         .bind(keypair.public_key)
         .bind(keypair.private_key)
+        .bind(profile_page)
         .execute(&app_state.pool)
         .await;
 

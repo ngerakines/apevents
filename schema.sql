@@ -7,6 +7,7 @@ CREATE TABLE actors (
     inbox_id varchar,
     created_at timestamp not null default now(),
     updated_at timestamp not null default now(),
+    resources varchar[] not null default array[]::varchar[],
     PRIMARY KEY (ap_id)
 );
 

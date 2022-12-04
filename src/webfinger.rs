@@ -1,67 +1,18 @@
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
-use serde_derive::Deserialize;
-use thiserror::Error;
+use std::time::Duration;
 
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use log::info;
+use reqwest::{Client, Url};
+use reqwest_middleware::ClientWithMiddleware;
+use serde::de::DeserializeOwned;
+use serde_derive::Deserialize;
 use actix_webfinger::{Link, Webfinger};
 
-use crate::state::MyStateHandle;
-
-#[derive(Clone, Debug, Error)]
-#[error("Resource {0} is invalid")]
-pub struct InvalidResource(String);
-
-#[derive(Clone, Debug)]
-pub struct WebfingerResource {
-    pub scheme: Option<String>,
-    pub account: String,
-    pub domain: String,
-}
-
-impl std::str::FromStr for WebfingerResource {
-    type Err = InvalidResource;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (scheme, trimmed) = s
-            .find(':')
-            .map(|index| {
-                let (scheme, trimmed) = s.split_at(index);
-                (
-                    Some(scheme.to_owned() + ":"),
-                    trimmed.trim_start_matches(':'),
-                )
-            })
-            .unwrap_or((None, s));
-
-        let trimmed = trimmed.trim_start_matches('@');
-
-        if let Some(index) = trimmed.find('@') {
-            let (account, domain) = trimmed.split_at(index);
-
-            Ok(WebfingerResource {
-                scheme,
-                account: account.to_owned(),
-                domain: domain.trim_start_matches('@').to_owned(),
-            })
-        } else {
-            Err(InvalidResource(s.to_owned()))
-        }
-    }
-}
-
-impl<'de> serde::de::Deserialize<'de> for WebfingerResource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        s.parse::<WebfingerResource>()
-            .map_err(serde::de::Error::custom)
-    }
-}
+use crate::{objects::actor::EventActor, state::MyStateHandle, error::ApEventsError};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct WebfingerQuery {
-    resource: WebfingerResource,
+    resource: String,
 }
 
 pub async fn handle_webfinger(
@@ -69,55 +20,89 @@ pub async fn handle_webfinger(
     _req: HttpRequest,
     query: web::Query<WebfingerQuery>,
 ) -> impl Responder {
-    let WebfingerResource {
-        scheme,
-        account,
-        domain,
-    } = query.into_inner().resource;
+    let mut query_resource: Option<&str> = None;
+    if query.resource.starts_with("acc:") {
+        if !query
+            .resource
+            .ends_with(format!("@{}", app_state.domain).as_str())
+        {
+            // Bail if the resource does not end with "@<domain>"
+            return HttpResponse::NotFound().finish();
+        }
+        query_resource = query.resource.strip_prefix("acc:");
+    } else if query.resource.starts_with("https://") {
+        // Bail if the resource does not start with with "<external_base>/"
+        // This is because the external_base includes the protocol ("https://"), domain, and port.
+        if !query
+            .resource
+            .starts_with(format!("{}/", app_state.external_base).as_str())
+        {
+            return HttpResponse::NotFound().finish();
+        }
+        query_resource = Some(query.resource.as_str());
+    }
 
-    if Some("acct:".to_string()) != scheme {
+    if query_resource.is_none() {
         return HttpResponse::NotFound().finish();
     }
 
-    if domain != app_state.domain {
+    // SELECT * FROM actors WHERE $1 = ANY (resources);
+    let found_actor_res: Result<Option<EventActor>, sqlx::Error> =
+        sqlx::query_as("SELECT * FROM actors WHERE $1 = ANY (resources)")
+            .bind(&query_resource.unwrap())
+            .fetch_optional(&app_state.pool)
+            .await;
+
+    if let Err(_) = found_actor_res {
         return HttpResponse::NotFound().finish();
     }
 
-    let ap_id = format!("{}/actor/{}", app_state.external_base, account);
+    let found_actor = found_actor_res.unwrap();
 
-    let user_count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) as count FROM actors WHERE ap_id = $1")
-            .bind(&ap_id)
-            .fetch_one(&app_state.pool)
-            .await
-            .unwrap_or((0,));
-
-    if user_count == (0,) {
+    if found_actor.is_none() {
         return HttpResponse::NotFound().finish();
     }
 
-    let mut svc = Webfinger::new(&format!("acct:{}@{}", account, app_state.domain));
-    svc.add_alias(&format!("{}/@{}", app_state.external_base, account));
-    svc.add_link(Link {
-        rel: "http://webfinger.net/rel/profile-page".to_string(),
-        kind: Some("text/html".to_string()),
-        href: Some(format!("{}/@{}", app_state.external_base, account)),
-        template: None,
-    });
-    svc.add_link(Link {
-        rel: "self".to_string(),
-        kind: Some("application/activity+json".to_string()),
-        href: Some(format!("{}/actor/{}", app_state.external_base, account)),
-        template: None,
-    });
-    svc.add_link(Link {
-        rel: "http://ostatus.org/schema/1.0/subscribe".to_string(),
-        kind: None,
-        href: None,
-        template: Some(format!(
-            "{}/authorize_interaction?uri={{uri}}",
-            app_state.external_base
-        )),
-    });
+    let fa = found_actor.unwrap();
+    let actor_ref_parts: Vec<&str> = fa.actor_ref.split('@').collect();
+    let name = actor_ref_parts[0];
+
+    let mut svc = Webfinger::new(&format!("acct:{}", fa.actor_ref));
+    svc.add_alias(&format!("{}/@{}", app_state.external_base, &name));
+    svc.add_profile(&format!("{}/@{}", app_state.external_base, &name));
+    svc.add_activitypub(&fa.ap_id.to_string());
     svc.respond()
+}
+
+pub async fn webfinger_discover<Kind: DeserializeOwned>(
+    resource: String,
+) -> Result<Kind, ApEventsError> {
+    let mut domain: Option<String> = None;
+
+    if resource.starts_with("https://") {
+        let parsed_resource = Url::parse(resource.clone().as_str())?;
+        domain = match parsed_resource.domain() {
+            Some(value) => Some(value.to_string()),
+            None => None
+        };
+    } else if resource.starts_with("acc:") {
+        let trimmed: &str = resource.trim_start_matches("@");
+        domain =  (!trimmed.is_empty()).then(|| trimmed.to_string());
+    }
+    if domain.is_none() {
+        return Err(ApEventsError::new("unable to parse domain from resource".to_string()));
+    }
+
+    let client: ClientWithMiddleware = Client::default().into();
+    let request_timeout = Duration::from_secs(10);
+
+    let res = client
+        .get(format!("https://{}/.well-known/webfinger", domain.unwrap().clone()))
+        .query(&[("resource", resource)])
+        .timeout(request_timeout)
+        .header("Accept", "application/jrd+json")
+        .send()
+        .await?;
+
+    res.json().await.map_err(ApEventsError::conv)
 }

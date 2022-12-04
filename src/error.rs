@@ -34,3 +34,13 @@ where
         ApEventsError(t.into())
     }
 }
+
+impl ApEventsError {
+    pub fn conv<T>(error: T) -> Self
+    where
+        T: Into<anyhow::Error>,
+    {
+        ApEventsError(error.into())
+    }
+}
+
