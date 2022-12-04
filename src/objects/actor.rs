@@ -1,9 +1,10 @@
 use crate::{
     activities::{accept::Accept, follow::Follow},
+    ap,
     error::ApEventsError,
     fed::actor_maybe,
     state::MyStateHandle,
-    util::generate_object_id, ap,
+    util::generate_object_id,
 };
 use activitypub_federation::{
     core::{activity_queue::send_activity, object_id::ObjectId, signatures::PublicKey},
