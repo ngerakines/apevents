@@ -20,6 +20,7 @@ mod instance;
 mod objects;
 mod state;
 mod storage_actor;
+mod storage_domains;
 mod util;
 mod webfinger;
 

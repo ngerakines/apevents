@@ -6,6 +6,7 @@ use crate::error::ApEventsError;
 use crate::objects::actor::EventActor;
 use crate::state::MyStateHandle;
 use crate::storage_actor::create_actor;
+use crate::storage_domains::create_domain;
 use crate::util::fetch_object_http;
 use crate::webfinger::webfinger_discover;
 
@@ -51,6 +52,13 @@ pub async fn actor_maybe(
         ));
     }
     let remote_ap_id = webfinger_res.activitypub().unwrap().href.as_ref().unwrap();
+
+    let parsed_resource = Url::parse(remote_ap_id.clone().as_str())?;
+    let domain = parsed_resource.domain().map(|value| value.to_string());
+    let found_domain = create_domain(app_state, domain.unwrap()).await?;
+    if !found_domain.is_allowed() {
+        return Err(ApEventsError::new("domain not allowed".to_string()));
+    }
 
     let remote_ap_id_url = Url::parse(remote_ap_id)?;
 

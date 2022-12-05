@@ -26,3 +26,10 @@ CREATE TABLE follow_activities (
 create index follow_activities_follower on public.follow_activities (follower_ap_id);
 create index follow_activities_followee on public.follow_activities (followee_ap_id);
 create index follow_activities_follow_activity on public.follow_activities (activity_ap_id);
+
+CREATE TABLE domains (
+    domain VARCHAR NOT NULL PRIMARY KEY,
+    action INT NOT NULL DEFAULT 0,
+    created_at timestamp not null default now(),
+    updated_at timestamp not null default now()
+);
