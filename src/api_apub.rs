@@ -34,7 +34,7 @@ pub async fn handle_instance_get_event_actor(
     let user = ObjectId::<EventActor>::new(url)
         .dereference_local(&app_state)
         .await;
-    if let Err(_) = user {
+    if user.is_err() {
         return Ok(HttpResponse::NotFound()
             .content_type(APUB_JSON_CONTENT_TYPE)
             .finish());

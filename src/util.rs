@@ -1,10 +1,19 @@
-use activitypub_federation::{
-    core::signatures::PublicKey, Error, LocalInstance, APUB_JSON_CONTENT_TYPE,
-};
+use activitypub_federation::{Error, APUB_JSON_CONTENT_TYPE};
 use actix_web::guard::{Guard, GuardContext};
+use http::{header::HeaderName, HeaderMap, HeaderValue};
 use http_signature_normalization_reqwest::{prelude::SignExt, Config};
+use httpdate::fmt_http_date;
 use log::info;
-use reqwest::{header, StatusCode};
+use openssl::{hash::MessageDigest, pkey::PKey, sign::Signer};
+use reqwest::header;
+use reqwest::Client;
+use reqwest::Request;
+use reqwest_middleware::ClientWithMiddleware;
+use reqwest_middleware::RequestBuilder;
+use serde::de::DeserializeOwned;
+use sha2::{Digest, Sha256};
+use std::time::{Duration, SystemTime};
+use url::Url;
 
 #[allow(non_snake_case)]
 pub fn HeaderStart(name: &'static str, value: &'static str) -> impl Guard {
@@ -19,36 +28,15 @@ struct HeaderStartGuard(header::HeaderName, String);
 impl Guard for HeaderStartGuard {
     fn check(&self, ctx: &GuardContext<'_>) -> bool {
         if let Some(val) = ctx.head().headers.get(&self.0) {
-            let values: Vec<String> = val
+            return val
                 .to_str()
                 .unwrap()
-                .split(",")
+                .split(',')
                 .map(|s| s.to_string())
-                .collect();
-            return values.contains(&self.1);
+                .any(|x| x == self.1);
         }
         false
     }
-}
-
-use http::{header::HeaderName, HeaderMap, HeaderValue};
-use httpdate::fmt_http_date;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use reqwest::Client;
-use reqwest_middleware::ClientWithMiddleware;
-use serde::de::DeserializeOwned;
-use std::time::{Duration, SystemTime};
-use url::{ParseError, Url};
-
-/// Just generate random url as object id. In a real project, you probably want to use
-/// an url which contains the database id for easy retrieval (or store the random id in db).
-pub fn generate_object_id(hostname: &str) -> Result<Url, ParseError> {
-    let id: String = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(7)
-        .map(char::from)
-        .collect();
-    Url::parse(&format!("http://{}/objects/{}", hostname, id))
 }
 
 pub async fn fetch_object_http<Kind: DeserializeOwned>(
@@ -56,9 +44,8 @@ pub async fn fetch_object_http<Kind: DeserializeOwned>(
     public_key_id: String,
     private_key: String,
 ) -> Result<Kind, Error> {
-    // dont fetch local objects this way
+    // TODO: Bail if url starts with "<external_base>/"
 
-    // verify_url_valid(url, &instance.settings).await?;
     info!("Fetching remote object {}", url.to_string());
 
     let client: ClientWithMiddleware = Client::default().into();
@@ -67,32 +54,16 @@ pub async fn fetch_object_http<Kind: DeserializeOwned>(
     let request_builder = client
         .get(url.to_string())
         .timeout(request_timeout)
-        .headers(generate_request_headers(&url));
+        .headers(generate_object_request_headers(url));
 
     let request =
         sign_request(request_builder, url.to_string(), public_key_id, private_key).await?;
-
-    info!("request {:?}", &request);
     let res = client.execute(request).await.map_err(Error::conv)?;
-
-    info!("response {:?}", &res);
-    // info!("response body {:?}", &res.text().await.unwrap());
-    // let res = client
-    //     .get(url.as_str())
-    //     .header("Accept", APUB_JSON_CONTENT_TYPE)
-    //     .timeout(request_timeout)
-    //     .send()
-    //     .await
-    //     .map_err(Error::conv)?;
-
-    // if res.status() == StatusCode::GONE {
-    //     return Err(Error::ObjectDeleted);
-    // }
 
     res.json().await.map_err(Error::conv)
 }
 
-fn generate_request_headers(inbox_url: &Url) -> HeaderMap {
+fn generate_object_request_headers(inbox_url: &Url) -> HeaderMap {
     let mut host = inbox_url.domain().expect("read inbox domain").to_string();
     if let Some(port) = inbox_url.port() {
         host = format!("{}:{}", host, port);
@@ -113,17 +84,6 @@ fn generate_request_headers(inbox_url: &Url) -> HeaderMap {
     );
     headers
 }
-
-use openssl::{
-    hash::MessageDigest,
-    pkey::PKey,
-    rsa::Rsa,
-    sign::{Signer, Verifier},
-};
-use reqwest::Request;
-use reqwest_middleware::RequestBuilder;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 pub(crate) async fn sign_request(
     request_builder: RequestBuilder,

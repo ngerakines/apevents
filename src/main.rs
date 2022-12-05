@@ -18,6 +18,7 @@ mod handler_events;
 mod instance;
 mod objects;
 mod state;
+mod storage_actor;
 mod util;
 mod webfinger;
 

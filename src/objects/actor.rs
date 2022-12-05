@@ -1,10 +1,12 @@
 use crate::{
     activities::{accept::Accept, follow::Follow},
-    ap,
+    ap::{
+        self,
+        ids::{generate_object_id, KindType},
+    },
     error::ApEventsError,
     fed::actor_maybe,
     state::MyStateHandle,
-    util::generate_object_id,
 };
 use activitypub_federation::{
     core::{activity_queue::send_activity, object_id::ObjectId, signatures::PublicKey},
@@ -23,6 +25,7 @@ pub struct EventActor {
     pub ap_id: ObjectId<EventActor>,
     pub actor_ref: String,
     pub inbox: Url,
+    pub public_key_id: String,
     pub public_key: String,
     pub private_key: Option<String>,
 
@@ -74,14 +77,26 @@ impl EventActor {
         other: String,
         app_state: &MyStateHandle,
     ) -> Result<(), ApEventsError> {
-        let found_remote_actor = actor_maybe(app_state, self.ap_id.to_string(), other).await?;
+        let found_remote_actor =
+            actor_maybe(app_state, self.ap_id.to_string(), other.clone()).await?;
 
-        let id = generate_object_id(&app_state.domain)?;
+        let id = generate_object_id(&app_state.external_base, KindType::Follow)?;
         let follow = Follow::new(
             self.ap_id.clone(),
             found_remote_actor.ap_id.clone(),
             id.clone(),
         );
+
+        sqlx::query(
+            "INSERT INTO follow_activities (follower_ap_id, followee_ap_id, activity_ap_id) VALUES ($1, $2, $3)",
+        )
+            .bind(self.ap_id.to_string())
+            .bind(&other)
+            .bind(id.to_string())
+            .execute(&app_state.pool)
+            .await
+            .map_err(ApEventsError::conv)?;
+
         self.send(
             follow,
             vec![found_remote_actor.shared_inbox_or_inbox()],
@@ -118,10 +133,12 @@ impl TryFrom<ap::actor::Actor> for EventActor {
     type Error = ApEventsError;
 
     fn try_from(actor: ap::actor::Actor) -> Result<Self, Self::Error> {
+        let public_key = actor.public_key.unwrap();
         Ok(EventActor {
             ap_id: ObjectId::new(Url::parse(&actor.ap_id)?),
             actor_ref: "".to_string(),
-            public_key: actor.public_key.unwrap().public_key_pem,
+            public_key_id: public_key.ap_id,
+            public_key: public_key.public_key_pem,
             private_key: None,
             inbox: Url::parse(&actor.inbox.unwrap())?,
             followers: vec![],
@@ -137,6 +154,7 @@ impl FromRow<'_, PgRow> for EventActor {
         Ok(Self {
             ap_id: ObjectId::new(ap_id),
             actor_ref: row.try_get("actor_ref")?,
+            public_key_id: row.try_get("public_key_id")?,
             public_key: row.try_get("public_key")?,
             private_key: row.try_get("private_key")?,
             inbox: Url::parse(row.try_get("inbox_id")?).expect("msg"),
