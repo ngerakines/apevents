@@ -12,6 +12,7 @@ mod activities;
 mod ap;
 mod api_apub;
 mod api_internal;
+mod api_nodeinfo;
 mod error;
 mod fed;
 mod handler_events;
@@ -28,6 +29,9 @@ use util::HeaderStart;
 
 use crate::api_apub::handle_instance_get_event_actor;
 use crate::api_internal::handle_internal_create_user;
+use crate::api_nodeinfo::{
+    handle_instance_info_v1, handle_instance_peers, handle_nodeinfo_20, handle_wellknown_nodeinfo,
+};
 use crate::handler_events::{handle_event, handle_home};
 use crate::state::state_factory;
 use crate::webfinger::handle_webfinger;
@@ -69,6 +73,16 @@ async fn main() -> std::io::Result<()> {
             .route(
                 "/.well-known/host-meta",
                 web::get().to(handle_wellknown_host_meta),
+            )
+            .route(
+                "/.well-known/nodeinfo",
+                web::get().to(handle_wellknown_nodeinfo),
+            )
+            .route("/nodeinfo/2.0", web::get().to(handle_nodeinfo_20))
+            .route("/api/v1/instance", web::get().to(handle_instance_info_v1))
+            .route(
+                "/api/v1/instance/peers",
+                web::get().to(handle_instance_peers),
             )
             .route("/", web::get().to(handle_index))
             .route(
