@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
 
-use crate::{error::ApEventsError, state::MyStateHandle};
+use crate::{error::ApEventsError, state::MyStateHandle, storage_domains::list_allowed_domains};
 
 #[derive(Serialize, Deserialize)]
 pub struct NodeInfoLinks {
@@ -80,10 +80,11 @@ pub async fn handle_nodeinfo_20() -> Result<HttpResponse, ApEventsError> {
         }))
 }
 
-pub async fn handle_instance_peers() -> Result<HttpResponse, ApEventsError> {
+pub async fn handle_instance_peers(app_state: web::Data<MyStateHandle>) -> Result<HttpResponse, ApEventsError> {
+    let domains = list_allowed_domains(&app_state).await?;
     Ok(HttpResponse::Ok()
         .content_type("application/json")
-        .json(vec!["thegem.city".to_string()]))
+        .json(domains))
 }
 
 #[derive(Serialize, Deserialize)]
