@@ -79,3 +79,59 @@ pub async fn handle_nodeinfo_20() -> Result<HttpResponse, ApEventsError> {
             metadata: HashMap::from([]),
         }))
 }
+
+pub async fn handle_instance_peers() -> Result<HttpResponse, ApEventsError> {
+    Ok(HttpResponse::Ok()
+        .content_type("application/json")
+        .json(vec!["thegem.city".to_string()]))
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct InstanceInfo {
+    uri: String,
+    title: String,
+    short_description: String,
+    description: String,
+    email: String,
+    version: String,
+    urls: HashMap<String, String>,
+    stats: HashMap<String, u32>,
+    thumbnail: String,
+    languages: Vec<String>,
+    registrations: bool,
+    approval_required: bool,
+    invites_enabled: bool,
+    configuration: HashMap<String, String>,
+    contact_account: HashMap<String, String>,
+    rules: Vec<String>,
+}
+
+pub async fn handle_instance_info_v1(
+    app_state: web::Data<MyStateHandle>,
+) -> Result<HttpResponse, ApEventsError> {
+    Ok(HttpResponse::Ok()
+        .content_type("application/json")
+        .json(InstanceInfo {
+            uri: app_state.domain.clone(),
+            title: "APEvents".to_string(),
+            short_description: "An event framework".to_string(),
+            description: "APEvents is an open source federated event framework.".to_string(),
+            email: "admin@thegem.city".to_string(),
+            version: "0.1.0-alpha (compatible; apevents)".to_string(),
+            urls: HashMap::new(),
+            stats: HashMap::from([
+                ("user_count".to_string(), 1),
+                ("status_count".to_string(), 1),
+                ("domain_count".to_string(), 1),
+            ]),
+            thumbnail: format!("{}/thumbnail.png", app_state.external_base),
+            languages: vec!["en".to_string()],
+            registrations: false,
+            approval_required: true,
+            invites_enabled: true,
+            configuration: HashMap::new(),
+            contact_account: HashMap::new(),
+            rules: vec![],
+        }))
+}
