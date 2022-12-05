@@ -1,6 +1,11 @@
 use crate::{
     activities::{accept::Accept, follow::Follow},
+    ap::{
+        self,
+        ids::{generate_object_id, KindType},
+    },
     error::ApEventsError,
+    fed::actor_maybe,
     state::MyStateHandle,
 };
 use activitypub_federation::{
@@ -15,14 +20,19 @@ use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgRow, FromRow, Row};
 use url::Url;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct EventActor {
     pub ap_id: ObjectId<EventActor>,
     pub actor_ref: String,
     pub inbox: Url,
-    public_key: String,
-    private_key: Option<String>,
+    pub public_key_id: String,
+    pub public_key: String,
+    pub private_key: Option<String>,
+
+    #[serde(skip_deserializing)]
     pub followers: Vec<Url>,
+
+    #[serde(skip_deserializing)]
     pub local: bool,
 }
 
@@ -34,6 +44,11 @@ pub struct EventActorView {
     id: ObjectId<EventActor>,
     inbox: Url,
     public_key: PublicKey,
+
+    name: String,
+    preferred_username: String,
+    sensitive: bool,
+    summary: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -55,6 +70,40 @@ impl EventActor {
 
     fn public_key(&self) -> PublicKey {
         PublicKey::new_main_key(self.ap_id.clone().into_inner(), self.public_key.clone())
+    }
+
+    pub async fn follow(
+        &self,
+        other: String,
+        app_state: &MyStateHandle,
+    ) -> Result<(), ApEventsError> {
+        let found_remote_actor =
+            actor_maybe(app_state, self.ap_id.to_string(), other.clone()).await?;
+
+        let id = generate_object_id(&app_state.external_base, KindType::Follow)?;
+        let follow = Follow::new(
+            self.ap_id.clone(),
+            found_remote_actor.ap_id.clone(),
+            id.clone(),
+        );
+
+        sqlx::query(
+            "INSERT INTO follow_activities (follower_ap_id, followee_ap_id, activity_ap_id) VALUES ($1, $2, $3)",
+        )
+            .bind(self.ap_id.to_string())
+            .bind(&other)
+            .bind(id.to_string())
+            .execute(&app_state.pool)
+            .await
+            .map_err(ApEventsError::conv)?;
+
+        self.send(
+            follow,
+            vec![found_remote_actor.shared_inbox_or_inbox()],
+            &app_state.local_instance,
+        )
+        .await?;
+        Ok(())
     }
 
     pub(crate) async fn send<Activity>(
@@ -80,6 +129,24 @@ impl EventActor {
     }
 }
 
+impl TryFrom<ap::actor::Actor> for EventActor {
+    type Error = ApEventsError;
+
+    fn try_from(actor: ap::actor::Actor) -> Result<Self, Self::Error> {
+        let public_key = actor.public_key.unwrap();
+        Ok(EventActor {
+            ap_id: ObjectId::new(Url::parse(&actor.ap_id)?),
+            actor_ref: "".to_string(),
+            public_key_id: public_key.ap_id,
+            public_key: public_key.public_key_pem,
+            private_key: None,
+            inbox: Url::parse(&actor.inbox.unwrap())?,
+            followers: vec![],
+            local: true,
+        })
+    }
+}
+
 impl FromRow<'_, PgRow> for EventActor {
     fn from_row(row: &PgRow) -> sqlx::Result<Self> {
         let ap_id = Url::parse(row.try_get("ap_id")?).expect("msg");
@@ -87,6 +154,7 @@ impl FromRow<'_, PgRow> for EventActor {
         Ok(Self {
             ap_id: ObjectId::new(ap_id),
             actor_ref: row.try_get("actor_ref")?,
+            public_key_id: row.try_get("public_key_id")?,
             public_key: row.try_get("public_key")?,
             private_key: row.try_get("private_key")?,
             inbox: Url::parse(row.try_get("inbox_id")?).expect("msg"),
@@ -115,11 +183,17 @@ impl ApubObject for EventActor {
     }
 
     async fn into_apub(self, _data: &Self::DataType) -> Result<Self::ApubType, Self::Error> {
+        let actor_ref_parts: Vec<&str> = self.actor_ref.split('@').collect();
+
         Ok(EventActorView {
             kind: Default::default(),
             id: self.ap_id.clone(),
             inbox: self.inbox.clone(),
             public_key: self.public_key(),
+            name: actor_ref_parts[0].to_string(),
+            preferred_username: actor_ref_parts[0].to_string(),
+            sensitive: false,
+            summary: Some("a description".to_string()),
         })
     }
 

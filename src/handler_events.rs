@@ -36,7 +36,7 @@ pub async fn handle_home(app_state: Data<MyStateHandle>) -> Result<HttpResponse,
         .fetch_all(&app_state.pool)
         .await;
 
-    if let Err(_) = found_actors {
+    if found_actors.is_err() {
         return Ok(HttpResponse::NotFound().finish());
     }
 
@@ -63,7 +63,7 @@ pub async fn handle_event(
             .fetch_one(&app_state.pool)
             .await;
 
-    if let Err(_) = found_actor_res {
+    if found_actor_res.is_err() {
         return Ok(HttpResponse::NotFound().finish());
     }
     let found_actor = found_actor_res.unwrap();

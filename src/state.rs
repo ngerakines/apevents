@@ -18,9 +18,9 @@ pub struct MyState {
 }
 
 pub async fn state_factory() -> Result<MyStateHandle, ApEventsError> {
-    let domain: String = env::var("DOMAIN").unwrap_or_else(|_| format!("localhost:8080"));
+    let domain: String = env::var("DOMAIN").unwrap_or_else(|_| "localhost:8080".to_string());
     let external_base: String =
-        env::var("EXTERNAL_BASE").unwrap_or_else(|_| format!("http://localhost:8080"));
+        env::var("EXTERNAL_BASE").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     let database: String = env::var("DATABASE").unwrap_or_else(|_| {
         "postgresql://apevents_app:password@127.0.0.1/apevents_dev".to_string()
@@ -42,7 +42,7 @@ pub async fn state_factory() -> Result<MyStateHandle, ApEventsError> {
         domain: domain.to_owned(),
         external_base: external_base.to_owned(),
         database: database.to_owned(),
-        local_instance: local_instance,
+        local_instance,
         pool,
     }))
 }
