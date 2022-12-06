@@ -11,12 +11,11 @@ use crate::{
     fed::actor_maybe,
     state::MyStateHandle,
 };
-use activitypub_federation::traits::Actor;
 use activitypub_federation::{
     core::{activity_queue::send_activity, object_id::ObjectId, signatures::PublicKey},
     data::Data,
     deser::context::WithContext,
-    traits::{ActivityHandler, ApubObject},
+    traits::{ActivityHandler, ApubObject, Actor},
     LocalInstance,
 };
 use serde::{Deserialize, Serialize};
@@ -38,21 +37,6 @@ pub struct EventActor {
     #[serde(skip_deserializing)]
     pub local: bool,
 }
-
-// #[derive(Clone, Debug, Deserialize, Serialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct EventActorView {
-//     #[serde(rename = "type")]
-//     kind: PersonType,
-//     id: ObjectId<EventActor>,
-//     inbox: Url,
-//     public_key: PublicKey,
-
-//     name: String,
-//     preferred_username: String,
-//     sensitive: bool,
-//     summary: Option<String>,
-// }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]

@@ -21,7 +21,6 @@ pub async fn handle_internal_create_user(
 
     let keypair = generate_actor_keypair().map_err(|_| ApEventsError::Unknown)?;
 
-    // pub async fn create_actor(app_state: &MyStateHandle, actor: Actor) -> Result<EventActor, ApEventsError> {
     create_actor(
         &app_state,
         Actor {
