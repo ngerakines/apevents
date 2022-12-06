@@ -11,6 +11,7 @@ use activitypub_federation::{
     APUB_JSON_CONTENT_TYPE,
 };
 use actix_web::{web, HttpRequest, HttpResponse};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{ops::Deref, str::FromStr, vec};
 use url::Url;
@@ -24,29 +25,87 @@ pub async fn handle_wellknown_host_meta(
 }
 
 pub async fn handle_instance_get_event_actor(
-    request: HttpRequest,
+    name: web::Path<String>,
     app_state: web::Data<MyStateHandle>,
 ) -> Result<HttpResponse, ApEventsError> {
     // TODO: Validate signatures
 
-    let request_url = format!("{}{}", app_state.external_base, &request.uri().to_string());
+    let request_url = format!("{}/actor/{}", app_state.external_base, name);
     let url = Url::parse(&request_url)?;
     let user = ObjectId::<EventActor>::new(url)
         .dereference_local(&app_state)
-        .await;
-    if user.is_err() {
-        return Ok(HttpResponse::NotFound()
-            .content_type(APUB_JSON_CONTENT_TYPE)
-            .finish());
-    }
+        .await?;
+
     Ok(HttpResponse::Ok()
         .content_type(APUB_JSON_CONTENT_TYPE)
         .json(WithContext::new(
-            user.unwrap().into_apub(&app_state).await?,
+            user.into_apub(&app_state).await?,
             vec![
                 Value::from_str("\"https://www.w3.org/ns/activitystreams\"")?,
                 Value::from_str("\"https://w3id.org/security/v1\"")?,
             ],
+        )))
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FollowersCollection {
+    #[serde(rename = "id")]
+    pub ap_id: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub total_items: u32,
+}
+
+pub async fn handle_instance_get_event_actor_followers(
+    name: web::Path<String>,
+    app_state: web::Data<MyStateHandle>,
+) -> Result<HttpResponse, ApEventsError> {
+    // TODO: Validate signatures
+
+    let request_url = format!("{}/actor/{}", app_state.external_base, name);
+    let url = Url::parse(&request_url)?;
+    let user = ObjectId::<EventActor>::new(url)
+        .dereference_local(&app_state)
+        .await?;
+
+    Ok(HttpResponse::Ok()
+        .content_type(APUB_JSON_CONTENT_TYPE)
+        .json(WithContext::new(
+            FollowersCollection {
+                ap_id: user.followers_url()?.to_string(),
+                kind: "OrderedCollection".to_string(),
+                total_items: 0,
+            },
+            vec![Value::from_str(
+                "\"https://www.w3.org/ns/activitystreams\"",
+            )?],
+        )))
+}
+
+pub async fn handle_instance_get_event_actor_following(
+    name: web::Path<String>,
+    app_state: web::Data<MyStateHandle>,
+) -> Result<HttpResponse, ApEventsError> {
+    // TODO: Validate signatures
+
+    let request_url = format!("{}/actor/{}", app_state.external_base, name);
+    let url = Url::parse(&request_url)?;
+    let user = ObjectId::<EventActor>::new(url)
+        .dereference_local(&app_state)
+        .await?;
+
+    Ok(HttpResponse::Ok()
+        .content_type(APUB_JSON_CONTENT_TYPE)
+        .json(WithContext::new(
+            FollowersCollection {
+                ap_id: user.followers_url()?.to_string(),
+                kind: "OrderedCollection".to_string(),
+                total_items: 0,
+            },
+            vec![Value::from_str(
+                "\"https://www.w3.org/ns/activitystreams\"",
+            )?],
         )))
 }
 

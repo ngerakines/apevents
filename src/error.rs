@@ -44,6 +44,9 @@ pub enum ApEventsError {
     #[error("an unexpected error has occured")]
     ClientRequestError(#[from] reqwest::Error),
 
+    #[error("actor not found: {0}")]
+    ActorNotFound(String, #[source] anyhow::Error),
+
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
@@ -62,6 +65,7 @@ impl ApEventsError {
 
     pub fn name(&self) -> String {
         match self {
+            Self::ActorNotFound(_, _) => "Actor Not Found".to_string(),
             Self::Generic(_) => "Generic".to_string(),
             Self::Unknown => "Unknown".to_string(),
             _ => "Unknown".to_string(),
@@ -72,6 +76,7 @@ impl ApEventsError {
 impl ResponseError for ApEventsError {
     fn status_code(&self) -> StatusCode {
         match *self {
+            Self::ActorNotFound(_, _) => StatusCode::NOT_FOUND,
             Self::Generic(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::INTERNAL_SERVER_ERROR,

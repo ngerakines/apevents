@@ -1,21 +1,24 @@
+use std::collections::HashMap;
+
 use crate::{
     activities::{accept::Accept, follow::Follow},
     ap::{
         self,
+        actor::{Actor as ActPubActor, PublicKey as ActorPublicKey},
         ids::{generate_object_id, KindType},
     },
     error::ApEventsError,
     fed::actor_maybe,
     state::MyStateHandle,
 };
+use activitypub_federation::traits::Actor;
 use activitypub_federation::{
     core::{activity_queue::send_activity, object_id::ObjectId, signatures::PublicKey},
     data::Data,
     deser::context::WithContext,
-    traits::{ActivityHandler, Actor, ApubObject},
+    traits::{ActivityHandler, ApubObject},
     LocalInstance,
 };
-use activitystreams_kinds::actor::PersonType;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgRow, FromRow, Row};
 use url::Url;
@@ -36,20 +39,20 @@ pub struct EventActor {
     pub local: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EventActorView {
-    #[serde(rename = "type")]
-    kind: PersonType,
-    id: ObjectId<EventActor>,
-    inbox: Url,
-    public_key: PublicKey,
+// #[derive(Clone, Debug, Deserialize, Serialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct EventActorView {
+//     #[serde(rename = "type")]
+//     kind: PersonType,
+//     id: ObjectId<EventActor>,
+//     inbox: Url,
+//     public_key: PublicKey,
 
-    name: String,
-    preferred_username: String,
-    sensitive: bool,
-    summary: Option<String>,
-}
+//     name: String,
+//     preferred_username: String,
+//     sensitive: bool,
+//     summary: Option<String>,
+// }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
@@ -66,6 +69,10 @@ impl EventActor {
 
     pub fn followers_url(&self) -> Result<Url, ApEventsError> {
         Ok(Url::parse(&format!("{}/followers", self.ap_id.inner()))?)
+    }
+
+    pub fn following_url(&self) -> Result<Url, ApEventsError> {
+        Ok(Url::parse(&format!("{}/following", self.ap_id.inner()))?)
     }
 
     fn public_key(&self) -> PublicKey {
@@ -166,7 +173,7 @@ impl FromRow<'_, PgRow> for EventActor {
 #[async_trait::async_trait(?Send)]
 impl ApubObject for EventActor {
     type DataType = MyStateHandle;
-    type ApubType = EventActorView;
+    type ApubType = ActPubActor;
     type DbType = EventActor;
     type Error = crate::error::ApEventsError;
 
@@ -177,22 +184,42 @@ impl ApubObject for EventActor {
         let found_actor: EventActor = sqlx::query_as("SELECT * FROM actors WHERE ap_id = $1")
             .bind(&object_id.to_string())
             .fetch_one(&data.pool)
-            .await?;
+            .await
+            .map_err(|err| ApEventsError::ActorNotFound(object_id.to_string(), err.into()))?;
         Ok(Some(found_actor))
     }
 
-    async fn into_apub(self, _data: &Self::DataType) -> Result<Self::ApubType, Self::Error> {
+    async fn into_apub(self, data: &Self::DataType) -> Result<ActPubActor, Self::Error> {
+        let ap_id = self.ap_id.to_string();
         let actor_ref_parts: Vec<&str> = self.actor_ref.split('@').collect();
 
-        Ok(EventActorView {
-            kind: Default::default(),
-            id: self.ap_id.clone(),
-            inbox: self.inbox.clone(),
-            public_key: self.public_key(),
+        Ok(ActPubActor {
+            ap_id: ap_id.clone(),
+            kind: "Person".to_string(),
+            following: Some(self.following_url()?.to_string()),
+            followers: Some(self.followers_url()?.to_string()),
+            inbox: Some(self.inbox().to_string()),
+            outbox: None,
+            featured: None,
+            featured_tags: None,
             name: actor_ref_parts[0].to_string(),
-            preferred_username: actor_ref_parts[0].to_string(),
-            sensitive: false,
-            summary: Some("a description".to_string()),
+            preferred_username: Some(actor_ref_parts[0].to_string()),
+            summary: None,
+            url: Some(format!("{}@{}", data.external_base, actor_ref_parts[0])),
+            discoverable: Some(false),
+            published: None,
+            public_key: Some(ActorPublicKey {
+                ap_id: self.public_key_id,
+                owner: ap_id,
+                public_key_pem: self.public_key,
+            }),
+            attachments: vec![],
+            endpoints: HashMap::from([(
+                "sharedInbox".to_string(),
+                format!("{}/inbox", data.external_base),
+            )]),
+            icon: None,
+            image: None,
         })
     }
 
@@ -211,7 +238,7 @@ impl ApubObject for EventActor {
         _request_counter: &mut i32,
     ) -> Result<Self, Self::Error> {
         Ok(sqlx::query_as("SELECT * FROM actors WHERE ap_id = $1")
-            .bind(apub.id.to_string())
+            .bind(apub.ap_id)
             .fetch_one(&data.pool)
             .await?)
     }
