@@ -94,8 +94,7 @@ impl EventActor {
             .bind(&other)
             .bind(id.to_string())
             .execute(&app_state.pool)
-            .await
-            .map_err(ApEventsError::conv)?;
+            .await?;
 
         self.send(
             follow,

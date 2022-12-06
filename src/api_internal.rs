@@ -19,7 +19,7 @@ pub async fn handle_internal_create_user(
     let name = petname::Petnames::default().generate_one(3, "-");
     let object_id = format!("{}/actor/{}", app_state.external_base, name);
 
-    let keypair = generate_actor_keypair()?;
+    let keypair = generate_actor_keypair().map_err(|_| ApEventsError::Unknown)?;
 
     // pub async fn create_actor(app_state: &MyStateHandle, actor: Actor) -> Result<EventActor, ApEventsError> {
     create_actor(

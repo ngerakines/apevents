@@ -106,5 +106,5 @@ pub async fn webfinger_discover<Kind: DeserializeOwned>(
         .send()
         .await?;
 
-    res.json().await.map_err(ApEventsError::conv)
+    res.json().await.map_err(|err| err.into())
 }

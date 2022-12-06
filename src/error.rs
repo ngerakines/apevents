@@ -1,45 +1,90 @@
-use actix_web::{http::header, HttpResponse, ResponseError};
-use anyhow::anyhow;
-use std::fmt::{Display, Formatter};
+use actix_web::{http::StatusCode, HttpResponse, ResponseError};
+use serde::Serialize;
+use thiserror::Error;
 
-/// Necessary because of this issue: https://github.com/actix/actix-web/issues/1711
-#[derive(Debug)]
-pub struct ApEventsError(anyhow::Error);
+use crate::ap::ids::ObjectIdError;
+
+#[derive(Debug, Error)]
+pub enum ApEventsError {
+    #[error("{0}")]
+    Generic(String),
+
+    #[error("error")]
+    SQLError,
+
+    #[error("an unexpected error has occured")]
+    Unknown,
+
+    #[error(transparent)]
+    Database(#[from] sqlx::Error),
+
+    #[error(transparent)]
+    ParseError(#[from] url::ParseError),
+
+    #[error("an unexpected error has occured")]
+    ObjectIdError(#[from] ObjectIdError),
+
+    #[error("an unexpected error has occured")]
+    JsonError(#[from] serde_json::Error),
+
+    #[error("an unexpected error has occured")]
+    ActivityPubFederation(#[from] activitypub_federation::Error),
+
+    #[error("an unexpected error has occured")]
+    SignatureVerificationError(
+        #[from] http_signature_normalization_actix::digest::middleware::VerifyError,
+    ),
+
+    #[error("an unexpected error has occured")]
+    InstanceSettingsBuilderError(#[from] activitypub_federation::InstanceSettingsBuilderError),
+
+    #[error("an unexpected error has occured")]
+    ClientRequestMiddlewareError(#[from] reqwest_middleware::Error),
+
+    #[error("an unexpected error has occured")]
+    ClientRequestError(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
+#[derive(Serialize)]
+struct ErrorResponse {
+    code: u16,
+    error: String,
+    message: String,
+}
 
 impl ApEventsError {
     pub fn new(message: String) -> Self {
-        Self(anyhow!(message))
+        ApEventsError::Generic(message)
+    }
+
+    pub fn name(&self) -> String {
+        match self {
+            Self::Generic(_) => "Generic".to_string(),
+            Self::Unknown => "Unknown".to_string(),
+            _ => "Unknown".to_string(),
+        }
     }
 }
 
 impl ResponseError for ApEventsError {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            Self::Generic(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
     fn error_response(&self) -> HttpResponse {
-        HttpResponse::InternalServerError()
-            .append_header(header::ContentType(mime::TEXT_PLAIN))
-            .body(format!("{:?}", self.0))
-    }
-}
-
-impl Display for ApEventsError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl<T> From<T> for ApEventsError
-where
-    T: Into<anyhow::Error>,
-{
-    fn from(t: T) -> Self {
-        ApEventsError(t.into())
-    }
-}
-
-impl ApEventsError {
-    pub fn conv<T>(error: T) -> Self
-    where
-        T: Into<anyhow::Error>,
-    {
-        ApEventsError(error.into())
+        let status_code = self.status_code();
+        let error_response = ErrorResponse {
+            code: status_code.as_u16(),
+            message: self.to_string(),
+            error: self.name(),
+        };
+        HttpResponse::build(status_code).json(error_response)
     }
 }

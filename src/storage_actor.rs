@@ -22,8 +22,7 @@ pub async fn create_actor(
     insert_actor_query(&actor, domain)?
         .build()
         .execute(&mut tx)
-        .await
-        .map_err(ApEventsError::conv)?;
+        .await?;
 
     if actor.url.is_some() {
         sqlx::query(
@@ -32,8 +31,7 @@ pub async fn create_actor(
         .bind(ap_id)
         .bind(actor.url)
         .execute(&mut tx)
-        .await
-        .map_err(ApEventsError::conv)?;
+        .await?;
     }
 
     if private_key.is_some() {
@@ -41,17 +39,15 @@ pub async fn create_actor(
             .bind(ap_id)
             .bind(private_key.unwrap())
             .execute(&mut tx)
-            .await
-            .map_err(ApEventsError::conv)?;
+            .await?;
     }
 
-    tx.commit().await.map_err(ApEventsError::conv)?;
+    tx.commit().await?;
 
     let found_actor: EventActor = sqlx::query_as("SELECT * FROM actors WHERE ap_id = $1")
         .bind(ap_id)
         .fetch_one(&app_state.pool)
-        .await
-        .map_err(ApEventsError::conv)?;
+        .await?;
 
     Ok(found_actor)
 }
