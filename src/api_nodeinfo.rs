@@ -80,7 +80,9 @@ pub async fn handle_nodeinfo_20() -> Result<HttpResponse, ApEventsError> {
         }))
 }
 
-pub async fn handle_instance_peers(app_state: web::Data<MyStateHandle>) -> Result<HttpResponse, ApEventsError> {
+pub async fn handle_instance_peers(
+    app_state: web::Data<MyStateHandle>,
+) -> Result<HttpResponse, ApEventsError> {
     let domains = list_allowed_domains(&app_state).await?;
     Ok(HttpResponse::Ok()
         .content_type("application/json")

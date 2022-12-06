@@ -32,18 +32,13 @@ struct HomeTemplate<'a> {
 }
 
 pub async fn handle_home(app_state: Data<MyStateHandle>) -> Result<HttpResponse, ApEventsError> {
-    let found_actors: Result<Vec<EventActor>, sqlx::Error> = sqlx::query_as("SELECT * FROM actors")
+    let found_actors: Vec<EventActor> = sqlx::query_as("SELECT * FROM actors")
         .fetch_all(&app_state.pool)
-        .await;
-
-    if found_actors.is_err() {
-        return Ok(HttpResponse::NotFound().finish());
-    }
+        .await?;
 
     Ok(HomeTemplate {
         display_name: "A cool event",
         events: found_actors
-            .unwrap()
             .iter()
             .map(|x| EventElementTemplate(x.ap_id.to_string(), x.actor_ref.clone()))
             .collect(),
@@ -57,16 +52,10 @@ pub async fn handle_event(
 ) -> Result<HttpResponse, ApEventsError> {
     let actor_ap_id = format!("{}/actor/{}", app_state.external_base, info);
 
-    let found_actor_res: Result<EventActor, sqlx::Error> =
-        sqlx::query_as("SELECT * FROM actors WHERE ap_id = $1")
-            .bind(actor_ap_id)
-            .fetch_one(&app_state.pool)
-            .await;
-
-    if found_actor_res.is_err() {
-        return Ok(HttpResponse::NotFound().finish());
-    }
-    let found_actor = found_actor_res.unwrap();
+    let found_actor: EventActor = sqlx::query_as("SELECT * FROM actors WHERE ap_id = $1")
+        .bind(actor_ap_id)
+        .fetch_one(&app_state.pool)
+        .await?;
 
     Ok(EventTemplate {
         display_name: "A cool event",

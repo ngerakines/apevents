@@ -70,7 +70,7 @@ pub fn generate_object_id(external_base: &str, kind_type: KindType) -> Result<Ur
         kind_type.object_prefix(),
         generated_id
     ))
-    .map_err(ApEventsError::conv)
+    .map_err(|err| err.into())
 }
 
 #[cfg(test)]
