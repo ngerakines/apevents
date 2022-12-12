@@ -22,7 +22,7 @@ http-signature-normalization-actix = { version = "0.6.1", default-features = fal
 http-signature-normalization-reqwest = { version = "0.7.1", default-features = false, features = ["sha-2", "middleware"] }
 tokio = "1.21"
 url = { version = "2.3", features = ["serde"] }
-activitystreams-kinds = "0.2.1"
+activitystreams-kinds = "0.3.0"
 rand = "0.8"
 enum_delegate = "0.2"
 serde_json = { version = "1.0.87", features = ["preserve_order"] }
