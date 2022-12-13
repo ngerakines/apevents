@@ -28,7 +28,10 @@ use actix_files as fs;
 use actix_webfinger::WebfingerGuard;
 use util::HeaderStart;
 
-use crate::api_apub::handle_instance_get_event_actor;
+use crate::api_apub::{
+    handle_instance_get_event_actor, handle_instance_get_event_actor_followers,
+    handle_instance_get_event_actor_following,
+};
 use crate::api_internal::handle_internal_create_user;
 use crate::api_nodeinfo::{
     handle_instance_info_v1, handle_instance_peers, handle_nodeinfo_20, handle_wellknown_nodeinfo,
@@ -89,6 +92,14 @@ async fn main() -> std::io::Result<()> {
             .route(
                 "/actor/{name}",
                 web::get().to(handle_instance_get_event_actor),
+            )
+            .route(
+                "/actor/{name}/followers",
+                web::get().to(handle_instance_get_event_actor_followers),
+            )
+            .route(
+                "/actor/{name}/following",
+                web::get().to(handle_instance_get_event_actor_following),
             )
             .route(
                 "/internal/api/user",
