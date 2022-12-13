@@ -15,7 +15,7 @@ use activitypub_federation::{
     core::{activity_queue::send_activity, object_id::ObjectId, signatures::PublicKey},
     data::Data,
     deser::context::WithContext,
-    traits::{ActivityHandler, ApubObject, Actor},
+    traits::{ActivityHandler, Actor, ApubObject},
     LocalInstance,
 };
 use serde::{Deserialize, Serialize};
