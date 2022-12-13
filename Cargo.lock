@@ -12,7 +12,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "background-jobs",
- "base64",
+ "base64 0.13.1",
  "chrono",
  "derive_builder",
  "dyn-clone",
@@ -95,7 +95,7 @@ dependencies = [
  "actix-service",
  "actix-utils",
  "ahash",
- "base64",
+ "base64 0.13.1",
  "bitflags",
  "brotli",
  "bytes",
@@ -347,7 +347,7 @@ dependencies = [
  "askama",
  "askama_actix",
  "async-trait",
- "base64",
+ "base64 0.20.0",
  "enum_delegate",
  "env_logger",
  "http",
@@ -628,7 +628,7 @@ dependencies = [
  "actix-tls",
  "actix-utils",
  "ahash",
- "base64",
+ "base64 0.13.1",
  "bytes",
  "cfg-if",
  "derive_more",
@@ -702,6 +702,12 @@ name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
+
+[[package]]
+name = "base64"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ea22880d78093b0cbe17c89f64a7d457941e65759157ec6cb31a31d652b05e5"
 
 [[package]]
 name = "bitflags"
@@ -1534,7 +1540,7 @@ dependencies = [
  "actix-http",
  "actix-rt",
  "actix-web",
- "base64",
+ "base64 0.13.1",
  "futures-util",
  "http-signature-normalization",
  "sha2",
@@ -1551,7 +1557,7 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e309145e63e70307ab1f521fb6e354158f0255e572da21c9fd56940c5bd5d854"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "http-signature-normalization",
  "httpdate",
  "reqwest",
@@ -2253,7 +2259,7 @@ version = "0.11.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68cc60575865c7831548863cc02356512e3f1dc2f3f82cb837d7fc4cc8f3c97c"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "bytes",
  "encoding_rs",
  "futures-core",
@@ -2528,7 +2534,7 @@ checksum = "dcbc16ddba161afc99e14d1713a453747a2b07fc097d2009f4c300ec99286105"
 dependencies = [
  "ahash",
  "atoi",
- "base64",
+ "base64 0.13.1",
  "bitflags",
  "byteorder",
  "bytes",

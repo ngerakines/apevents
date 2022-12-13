@@ -36,7 +36,7 @@ reqwest-middleware = "0.2.0"
 http = "0.2.8"
 httpdate = "1.0.2"
 openssl = { version = "0.10" }
-base64 = "0.13.1"
+base64 = "0.20.0"
 
 [profile.dev.package.sqlx-macros]
 opt-level = 3
