@@ -97,12 +97,11 @@ pub async fn handle_instance_get_event_actor_followers(
 
     let ap_id = user.followers_url()?.to_string();
 
-    let total: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM follow_activities WHERE followee_ap_id = $1",
-    )
-    .bind(&request_url)
-    .fetch_one(&app_state.pool)
-    .await?;
+    let total: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM follow_activities WHERE followee_ap_id = $1")
+            .bind(&request_url)
+            .fetch_one(&app_state.pool)
+            .await?;
 
     let first: Option<String> = match total.0 {
         0 => None,
@@ -114,7 +113,7 @@ pub async fn handle_instance_get_event_actor_followers(
             .content_type(APUB_JSON_CONTENT_TYPE)
             .json(WithContext::new(
                 FollowersCollection {
-                    ap_id: ap_id,
+                    ap_id,
                     kind: "OrderedCollection".to_string(),
                     total_items: total.0 as u32,
                     first,
@@ -145,7 +144,7 @@ pub async fn handle_instance_get_event_actor_followers(
 
     let prev = match page {
         1 => None,
-        _ => Some(format!("{}?page={}", ap_id, page - 1))
+        _ => Some(format!("{}?page={}", ap_id, page - 1)),
     };
 
     let next = match items.len() {
@@ -187,12 +186,11 @@ pub async fn handle_instance_get_event_actor_following(
 
     let ap_id = user.following_url()?.to_string();
 
-    let total: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM follow_activities WHERE follower_ap_id = $1",
-    )
-    .bind(&request_url)
-    .fetch_one(&app_state.pool)
-    .await?;
+    let total: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM follow_activities WHERE follower_ap_id = $1")
+            .bind(&request_url)
+            .fetch_one(&app_state.pool)
+            .await?;
 
     let first: Option<String> = match total.0 {
         0 => None,
@@ -204,7 +202,7 @@ pub async fn handle_instance_get_event_actor_following(
             .content_type(APUB_JSON_CONTENT_TYPE)
             .json(WithContext::new(
                 FollowersCollection {
-                    ap_id: ap_id,
+                    ap_id,
                     kind: "OrderedCollection".to_string(),
                     total_items: total.0 as u32,
                     first,
@@ -215,7 +213,6 @@ pub async fn handle_instance_get_event_actor_following(
             )));
     }
 
-        
     let page = pagination.page.unwrap();
 
     if page < 0 {
@@ -236,7 +233,7 @@ pub async fn handle_instance_get_event_actor_following(
 
     let prev = match page {
         1 => None,
-        _ => Some(format!("{}?page={}", ap_id, page - 1))
+        _ => Some(format!("{}?page={}", ap_id, page - 1)),
     };
 
     let next = match items.len() {
