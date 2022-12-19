@@ -18,7 +18,7 @@ dependencies = [
  "dyn-clone",
  "enum_delegate",
  "http",
- "http-signature-normalization-actix",
+ "http-signature-normalization-actix 0.6.2",
  "http-signature-normalization-reqwest 0.7.1",
  "httpdate",
  "itertools",
@@ -351,7 +351,7 @@ dependencies = [
  "enum_delegate",
  "env_logger",
  "http",
- "http-signature-normalization-actix",
+ "http-signature-normalization-actix 0.7.2",
  "http-signature-normalization-reqwest 0.8.0",
  "httpdate",
  "log",
@@ -1552,6 +1552,26 @@ dependencies = [
  "base64 0.13.1",
  "futures-util",
  "http-signature-normalization 0.6.0",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-error",
+ "tracing-futures",
+]
+
+[[package]]
+name = "http-signature-normalization-actix"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eabdd590b7b712a168bf4b01a63dc3118f668c3c5a76d0b9f2abf45c20dff55a"
+dependencies = [
+ "actix-http",
+ "actix-rt",
+ "actix-web",
+ "base64 0.13.1",
+ "futures-util",
+ "http-signature-normalization 0.7.0",
  "sha2",
  "thiserror",
  "tokio",
